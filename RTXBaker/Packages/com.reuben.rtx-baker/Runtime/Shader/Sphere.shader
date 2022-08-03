@@ -1,4 +1,4 @@
-Shader "Unlit/Sphere"
+Shader "Sphere"
 {
     Properties
     {
@@ -67,6 +67,17 @@ Shader "Unlit/Sphere"
 
             #include "Common.hlsl"
 
+            //碰撞三角形信息
+            struct IntersectionVertex
+            {
+                float3 normalOS;
+            };
+
+            void FetchIntersectionVertex(uint vertexIndex, out IntersectionVertex outVertex)
+            {
+                outVertex.normalOS = UnityRayTracingFetchVertexAttribute3(vertexIndex, kVertexAttributeNormal);
+            }
+
             CBUFFER_START (UnityPerMaterial)
             float4 _Color;
             CBUFFER_END
@@ -76,7 +87,21 @@ Shader "Unlit/Sphere"
             void ClosestHitShader(inout RayIntersection rayIntersection : SV_RayPayload,
                                   AttributeData attributeData : SV_IntersectionAttributes)
             {
-                rayIntersection.color = _Color;
+                //得到碰撞三角形的索引值
+                uint3 triangleIndices = UnityRayTracingFetchTriangleIndices(PrimitiveIndex());
+                //填充三角形顶点信息
+                IntersectionVertex v0, v1, v2;
+                FetchIntersectionVertex(triangleIndices.x, v0);
+                FetchIntersectionVertex(triangleIndices.y, v1);
+                FetchIntersectionVertex(triangleIndices.z, v2);
+                //顶点插值
+                float3 barycentricCoordinates = float3(1.0 - attributeData.barycentrics.x - attributeData.barycentrics.y, attributeData.barycentrics.x, attributeData.barycentrics.y);
+                float3 normalOS = INTERPOLATE_RAYTRACING_ATTRIBUTE(v0.normalOS, v1.normalOS, v2.normalOS, barycentricCoordinates);
+                //object to World
+                float3x3 objectToWorld = (float3x3)ObjectToWorld3x4();
+                float3 normalWS = normalize(mul(objectToWorld, normalOS));
+                //final color
+                rayIntersection.color = float4(0.5f * (normalWS + 1.0f), 0);
             }
             ENDHLSL
         }
