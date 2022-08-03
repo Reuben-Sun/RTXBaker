@@ -1,8 +1,12 @@
 ﻿#ifndef COMMON_INCLUDE
 #define COMMON_INCLUDE
 
+#include "UnityRayTracingMeshUtils.cginc"
+
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
+
+#define INTERPOLATE_RAYTRACING_ATTRIBUTE(A0, A1, A2, BARYCENTRIC_COORDINATES) (A0 * BARYCENTRIC_COORDINATES.x + A1 * BARYCENTRIC_COORDINATES.y + A2 * BARYCENTRIC_COORDINATES.z)
 
 CBUFFER_START(CameraBuffer)
 float4x4 _InvCameraViewProj;
@@ -19,6 +23,7 @@ struct AttributeData
 {
     float2 barycentrics;
 };
+
 
 RaytracingAccelerationStructure _AccelerationStructure;
 

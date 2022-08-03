@@ -58,19 +58,29 @@ namespace Reuben.RTXBaker.Runtime
                 false,
                 RenderTextureMemoryless.None,
                 $"OutputTarget_{mainCamera.name}");
-            
-            
-            //RTX
-            cmd.SetRayTracingShaderPass(_asset.shader, "RayTracing");
-            cmd.SetRayTracingAccelerationStructure(_asset.shader, accelerationStructureShaderId, _accelerationStructure);
-            cmd.SetRayTracingTextureParam(_asset.shader, renderTargetId, renderTarget);
-            cmd.DispatchRays(_asset.shader, "RTXShader", (uint) renderTarget.rt.width, (uint) renderTarget.rt.height, 1, mainCamera);
-            context.ExecuteCommandBuffer(cmd);
-            
-            //屏幕绘制
-            cmd.Blit(renderTarget, BuiltinRenderTextureType.CameraTarget, Vector2.one, Vector2.zero);
-            context.ExecuteCommandBuffer(cmd);
-            
+
+            try
+            {
+                using (new ProfilingSample(cmd, "RayTracing"))
+                {
+                    //RTX
+                    cmd.SetRayTracingShaderPass(_asset.shader, "RayTracing");
+                    cmd.SetRayTracingAccelerationStructure(_asset.shader, accelerationStructureShaderId, _accelerationStructure);
+                    cmd.SetRayTracingTextureParam(_asset.shader, renderTargetId, renderTarget);
+                    cmd.DispatchRays(_asset.shader, "RTXShader", (uint) renderTarget.rt.width, (uint) renderTarget.rt.height, 1, mainCamera);
+                }
+                context.ExecuteCommandBuffer(cmd);
+                using (new ProfilingSample(cmd, "FinalBilt"))
+                {
+                    //屏幕绘制
+                    cmd.Blit(renderTarget, BuiltinRenderTextureType.CameraTarget, Vector2.one, Vector2.zero);
+                }
+                context.ExecuteCommandBuffer(cmd);
+            }
+            finally
+            {
+                    
+            }
             //提交命令
             context.Submit();
         }
