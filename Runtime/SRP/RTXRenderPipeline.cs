@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
@@ -7,20 +8,25 @@ namespace Reuben.RTXBaker.Runtime
     public class RTXRenderPipeline: RenderPipeline
     {
         private RTXRenderPipelineAsset _asset;
-        public Camera mainCamera;
-        public CommandBuffer cmd;
-        public RayTracingAccelerationStructure _accelerationStructure;  //加速结构
+        private Camera mainCamera;
+        private CommandBuffer cmd;
+        private RayTracingAccelerationStructure _accelerationStructure;  //加速结构
+        private int _frameIndex = 0;
+        private ComputeBuffer PRNGStates;
 
         #region ID
         
-        private static int renderTargetId = Shader.PropertyToID("RenderTarget");
+        private static readonly int _renderTargetId = Shader.PropertyToID("_RenderTarget");
+        private static readonly int _frameIndexShaderId = Shader.PropertyToID("_FrameIndex");
+        private static readonly int _PRNGStatesShaderId = Shader.PropertyToID("_PRNGStates");
+        private static readonly int _renderTargetSizeId = Shader.PropertyToID("_RenderTargetSize");
         private static class CameraShaderParams
         {
             public static readonly int _WorldSpaceCameraPos = Shader.PropertyToID("_WorldSpaceCameraPos");
             public static readonly int _InvCameraViewProj = Shader.PropertyToID("_InvCameraViewProj");
             public static readonly int _CameraFarDistance = Shader.PropertyToID("_CameraFarDistance");
         }
-        private readonly int accelerationStructureShaderId = Shader.PropertyToID("_AccelerationStructure");
+        private static readonly int _accelerationStructureShaderId = Shader.PropertyToID("_AccelerationStructure");
         
         #endregion
         
@@ -37,6 +43,7 @@ namespace Reuben.RTXBaker.Runtime
             cmd = new CommandBuffer {name = "RTX Camera"};
             SetupCamera();
             SetupAccelerationStructure();   //初始化加速结构
+            SetupPRNGStates();
             //创建RT
             RTHandle renderTarget = RTHandles.Alloc(
                 mainCamera.pixelWidth,
@@ -58,18 +65,31 @@ namespace Reuben.RTXBaker.Runtime
                 false,
                 RenderTextureMemoryless.None,
                 $"OutputTarget_{mainCamera.name}");
-
+            
+            Vector4 renderTargetSize = new Vector4(mainCamera.pixelWidth, mainCamera.pixelHeight, 1.0f / mainCamera.pixelWidth, 1.0f / mainCamera.pixelHeight);
+            
             try
             {
-                using (new ProfilingSample(cmd, "RayTracing"))
+                if (_frameIndex < 1000)
                 {
-                    //RTX
-                    cmd.SetRayTracingShaderPass(_asset.shader, "RayTracing");
-                    cmd.SetRayTracingAccelerationStructure(_asset.shader, accelerationStructureShaderId, _accelerationStructure);
-                    cmd.SetRayTracingTextureParam(_asset.shader, renderTargetId, renderTarget);
-                    cmd.DispatchRays(_asset.shader, "RTXShader", (uint) renderTarget.rt.width, (uint) renderTarget.rt.height, 1, mainCamera);
+                    using (new ProfilingSample(cmd, "RayTracing"))
+                    {
+                        //RTX
+                        cmd.SetRayTracingShaderPass(_asset.shader, "RayTracing");
+                        cmd.SetRayTracingAccelerationStructure(_asset.shader, _accelerationStructureShaderId, _accelerationStructure);
+                        cmd.SetRayTracingIntParam(_asset.shader, _frameIndexShaderId, _frameIndex);
+                        cmd.SetRayTracingBufferParam(_asset.shader, _PRNGStatesShaderId, PRNGStates);
+                        cmd.SetRayTracingTextureParam(_asset.shader, _renderTargetId, renderTarget);
+                        cmd.SetRayTracingVectorParam(_asset.shader, _renderTargetSizeId, renderTargetSize);
+                        cmd.DispatchRays(_asset.shader, "RTXShader", (uint) renderTarget.rt.width, (uint) renderTarget.rt.height, 1, mainCamera);
+                    }
+                    context.ExecuteCommandBuffer(cmd);
+                    if (mainCamera.cameraType == CameraType.Game)
+                    {
+                        _frameIndex++;
+                    }
                 }
-                context.ExecuteCommandBuffer(cmd);
+                
                 using (new ProfilingSample(cmd, "FinalBilt"))
                 {
                     //屏幕绘制
@@ -108,6 +128,17 @@ namespace Reuben.RTXBaker.Runtime
             _accelerationStructure.Build();
 
             SceneManager.Instance.isDirty = false;
+        }
+
+        public void SetupPRNGStates()
+        {
+            PRNGStates = new ComputeBuffer(mainCamera.pixelWidth * mainCamera.pixelHeight, 4 * 4, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+            var _mt19937 = new MersenneTwister.MT.mt19937ar_cok_opt_t();
+            _mt19937.init_genrand((uint)System.DateTime.Now.Ticks);
+            var data = new uint[mainCamera.pixelWidth * mainCamera.pixelHeight * 4];
+            for (var i = 0; i < mainCamera.pixelWidth * mainCamera.pixelHeight * 4; ++i)
+                data[i] = _mt19937.genrand_int32();
+            PRNGStates.SetData(data);
         }
     }
 }
