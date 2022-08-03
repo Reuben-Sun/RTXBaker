@@ -17,6 +17,7 @@ CBUFFER_END
 struct RayIntersection
 {
     float4 color;
+    uint4 PRNGStates;   //随机数产生器
 };
 
 struct AttributeData
@@ -29,11 +30,10 @@ RaytracingAccelerationStructure _AccelerationStructure;
 
 inline void GenerateCameraRay(out float3 origin, out float3 direction)
 {
-    // center in the middle of the pixel.
+    //center
     float2 xy = DispatchRaysIndex().xy + 0.5f;
     float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0f - 1.0f;
-
-    // Un project the pixel coordinate into a ray.
+    
     float4 world = mul(_InvCameraViewProj, float4(screenPos, 0, 1));
 
     world.xyz /= world.w;
@@ -41,4 +41,15 @@ inline void GenerateCameraRay(out float3 origin, out float3 direction)
     direction = normalize(world.xyz - origin);
 }
 
+inline void GenerateCameraRayWithOffset(out float3 origin, out float3 direction, float2 offset)
+{
+    float2 xy = DispatchRaysIndex().xy + offset;
+    float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0f - 1.0f;
+    
+    float4 world = mul(_InvCameraViewProj, float4(screenPos, 0, 1));
+
+    world.xyz /= world.w;
+    origin = _WorldSpaceCameraPos.xyz;
+    direction = normalize(world.xyz - origin);
+}
 #endif

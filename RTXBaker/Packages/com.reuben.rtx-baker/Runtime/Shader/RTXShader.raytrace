@@ -1,8 +1,11 @@
 #pragma max_recursion_depth 1
 
 #include "Common.hlsl"
+#include "PRNG.hlsl"
 
-RWTexture2D<float4> RenderTarget;
+RWTexture2D<float4> _RenderTarget;
+float4 _RenderTargetSize;
+int _FrameIndex;
 
 inline float3 BackgroundColor(float3 origin, float3 direction)
 {
@@ -13,22 +16,40 @@ inline float3 BackgroundColor(float3 origin, float3 direction)
 [shader("raygeneration")]
 void RTXShader()
 {
-    uint2 dispatchIdx = DispatchRaysIndex().xy;
-    
-    float3 origin;
-    float3 direction;
-    GenerateCameraRay(origin, direction);
-    
-    RayDesc rayDescriptor;
-    rayDescriptor.Origin = origin;
-    rayDescriptor.Direction = direction;
-    rayDescriptor.TMin = 1e-5f;
-    rayDescriptor.TMax = _CameraFarDistance;
-    RayIntersection rayIntersection;
-    rayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, rayIntersection);
+    const uint2 dispatchIdx = DispatchRaysIndex().xy;
+    const uint PRNGIndex = dispatchIdx.y * (int)_RenderTargetSize.x + dispatchIdx.x;
+    uint4 PRNGStates = _PRNGStates[PRNGIndex];
+
+    float4 finalColor = float4(0,0,0,0);
+    {
+        float3 origin;
+        float3 direction;
+        float2 offset = float2(GetRandomValue(PRNGStates), GetRandomValue(PRNGStates));
+        GenerateCameraRayWithOffset(origin, direction, offset);
+        
+        RayDesc rayDescriptor;
+        rayDescriptor.Origin = origin;
+        rayDescriptor.Direction = direction;
+        rayDescriptor.TMin = 1e-5f;
+        rayDescriptor.TMax = _CameraFarDistance;
+
+        RayIntersection rayIntersection;
+        rayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        rayIntersection.PRNGStates = PRNGStates;
+
+        TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, rayIntersection);
+        PRNGStates = rayIntersection.PRNGStates;
+        finalColor += rayIntersection.color;
+    }    
       
-    RenderTarget[dispatchIdx] = rayIntersection.color;
+    _PRNGStates[PRNGIndex] = PRNGStates;
+    if (_FrameIndex > 1)
+    {
+        float a = 1.0f / (float)_FrameIndex;
+        finalColor = _RenderTarget[dispatchIdx] * (1.0f - a) + finalColor * a;
+    }
+
+    _RenderTarget[dispatchIdx] = finalColor;
 }
 
 [shader("miss")]
