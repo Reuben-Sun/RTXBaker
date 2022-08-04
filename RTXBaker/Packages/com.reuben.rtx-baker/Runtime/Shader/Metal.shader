@@ -1,8 +1,9 @@
-Shader "RT/Diffuse"
+Shader "RT/Metal"
 {
     Properties
     {
         _Color ("Main Color", Color) = (1,1,1,1)
+        _Fuzz ("Fuzz", float) = 0
     }
     SubShader
     {
@@ -84,6 +85,7 @@ Shader "RT/Diffuse"
 
             CBUFFER_START(UnityPerMaterial)
             float4 _Color;
+            float _Fuzz;
             CBUFFER_END
 
             void FetchIntersectionVertex(uint vertexIndex, out IntersectionVertex outVertex)
@@ -121,9 +123,13 @@ Shader "RT/Diffuse"
                 float3 positionWS = origin + direction * t;
 
                 // Make reflection ray.
+                float3 reflectDir = reflect(direction, normalWS);
+                if (dot(reflectDir, normalWS) < 0.0f)
+                    reflectDir = direction;
+                    
                 RayDesc rayDescriptor;
-                rayDescriptor.Origin = positionWS + 0.001f * normalWS;  //向外挤出一点点
-                rayDescriptor.Direction = normalize(normalWS + GetRandomOnUnitSphere(rayIntersection.PRNGStates)); //朝随机方向反射
+                rayDescriptor.Origin = positionWS + 0.001f * reflectDir;
+                rayDescriptor.Direction = reflectDir + _Fuzz * GetRandomOnUnitSphere(rayIntersection.PRNGStates);   //反射方向为反射光方向+一点随机
                 rayDescriptor.TMin = 1e-5f;
                 rayDescriptor.TMax = _CameraFarDistance;
 
@@ -139,7 +145,7 @@ Shader "RT/Diffuse"
                 color = reflectionRayIntersection.color;
                 }
 
-                rayIntersection.color = _Color * 0.5f * color;
+                rayIntersection.color = _Color * color;
             }
             ENDHLSL
         }
