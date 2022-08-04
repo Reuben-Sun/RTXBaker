@@ -19,3 +19,6 @@ Cmd: preprocessRayTracingShader
 Cmd: compileRayTracingShader
   insize=2004 path=F:/RTXBaker2/RTXBaker/Packages/com.reuben.rtx-baker/Runtime/Shader/RTXShader.raytrace buildPlatform=19 km=<SHADER_API_DESKTOP=1>,<SHADER_STAGE_RAYTRACING=1>,<SHADER_STAGE_RAY_TRACING=1>,<UNITY_VERSION=202136> platform=d3d11 flags=0 ok=1 outsize=9764
 
+Cmd: shutdown
+
+Quitting shader compiler process
