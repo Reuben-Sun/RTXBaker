@@ -1,8 +1,9 @@
-Shader "RT/Diffuse"
+Shader "RT/Dielectrics"
 {
     Properties
     {
         _Color ("Main Color", Color) = (1,1,1,1)
+        _IOR ("IOR", float) = 1.5
     }
     SubShader
     {
@@ -84,6 +85,7 @@ Shader "RT/Diffuse"
 
             CBUFFER_START(UnityPerMaterial)
             float4 _Color;
+            float _IOR;
             CBUFFER_END
 
             void FetchIntersectionVertex(uint vertexIndex, out IntersectionVertex outVertex)
@@ -91,6 +93,13 @@ Shader "RT/Diffuse"
                 outVertex.normalOS = UnityRayTracingFetchVertexAttribute3(vertexIndex, kVertexAttributeNormal);
             }
 
+            inline float schlick(float cosine, float IOR)   //菲涅尔
+            {
+                float r0 = (1.0f - IOR) / (1.0f + IOR);
+                r0 = r0 * r0;
+                return r0 + (1.0f - r0) * pow((1.0f - cosine), 5.0f);
+            }
+            
             [shader("closesthit")]
             void ClosestHitShader(inout RayIntersection rayIntersection : SV_RayPayload, AttributeData attributeData : SV_IntersectionAttributes)
             {
@@ -121,9 +130,35 @@ Shader "RT/Diffuse"
                 float3 positionWS = origin + direction * t;
 
                 // Make reflection ray.
+                float3 outwardNormal;
+                float niOverNt;
+                float reflectProb;
+                float cosine;
+                //保证法线向外
+                if (dot(-direction, normalWS) > 0.0f)
+                {
+                    outwardNormal = normalWS;
+                    niOverNt = 1.0f / _IOR;
+                    cosine = _IOR * dot(-direction, normalWS);
+                }
+                else
+                {
+                    outwardNormal = -normalWS;
+                    niOverNt = _IOR;
+                    cosine = -dot(-direction, normalWS);
+                }
+                //菲涅尔项
+                reflectProb = schlick(cosine, _IOR);
+                //散射方向
+                float3 scatteredDir;
+                if (GetRandomValue(rayIntersection.PRNGStates) < reflectProb)
+                    scatteredDir = reflect(direction, normalWS);
+                else
+                    scatteredDir = refract(direction, outwardNormal, niOverNt);
+                    
                 RayDesc rayDescriptor;
-                rayDescriptor.Origin = positionWS + 0.001f * normalWS;  //向外挤出一点点
-                rayDescriptor.Direction = normalize(normalWS + GetRandomOnUnitSphere(rayIntersection.PRNGStates)); //朝随机方向反射
+                rayDescriptor.Origin = positionWS + 0.00001f * scatteredDir;  //向外挤出一点点
+                rayDescriptor.Direction = scatteredDir; //朝散射方向反射
                 rayDescriptor.TMin = 1e-5f;
                 rayDescriptor.TMax = _CameraFarDistance;
 
@@ -133,13 +168,13 @@ Shader "RT/Diffuse"
                 reflectionRayIntersection.PRNGStates = rayIntersection.PRNGStates;
                 reflectionRayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-                TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
+                TraceRay(_AccelerationStructure, RAY_FLAG_NONE, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);   //双面相交测试
 
                 rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
                 color = reflectionRayIntersection.color;
                 }
 
-                rayIntersection.color = _Color * 0.5f * color;
+                rayIntersection.color = _Color * color;
             }
             ENDHLSL
         }
