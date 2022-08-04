@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -71,7 +73,6 @@ namespace Reuben.RTXBaker.Runtime
                         _frameIndex++;
                     }
                 }
-                
                 using (new ProfilingSample(cmd, "FinalBilt"))
                 {
                     //屏幕绘制
@@ -81,11 +82,28 @@ namespace Reuben.RTXBaker.Runtime
             }
             finally
             {
-                    
+                cmd.Release();
             }
             //提交命令
             context.Submit();
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (_accelerationStructure != null)
+            {
+                _accelerationStructure.Dispose();
+                _accelerationStructure = null;
+            }
+
+            if (PRNGStates != null)
+            {
+                PRNGStates.Release();
+            }
+        }
+
+        #region SetUpUtils
 
         public void SetupCamera()
         {
@@ -156,5 +174,28 @@ namespace Reuben.RTXBaker.Runtime
                 return renderTarget;
             }
         }
+
+        #endregion
+
+        #region BakeUtils
+
+        public void SaveRT(RenderTexture rt, string fileName)
+        {
+            if (fileName == "")
+            {
+                Debug.LogError("fail to save rt: fileName is empty");
+                return;
+            }
+            Debug.Log("Save RT");
+            RenderTexture prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            byte[] bytes = tex.EncodeToTGA();
+            File.WriteAllBytes($"Assets/{fileName}.tga", bytes);
+            AssetDatabase.Refresh();
+        }
+
+        #endregion
     }
 }
