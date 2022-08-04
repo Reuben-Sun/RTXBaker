@@ -6,4 +6,4 @@
 
 [UE4 IBL](https://cdn2-unrealengine-1251447533.file.myqcloud.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf)
 
-[3阶SH模拟Irradiance Map](Irradiance Map)
+[3阶SH模拟Irradiance Map](https://zhuanlan.zhihu.com/p/476612991)
