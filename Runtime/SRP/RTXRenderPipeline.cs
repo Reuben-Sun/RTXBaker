@@ -13,6 +13,7 @@ namespace Reuben.RTXBaker.Runtime
         private RayTracingAccelerationStructure _accelerationStructure;  //加速结构
         private int _frameIndex = 0;
         private ComputeBuffer PRNGStates;
+        private Dictionary<int, RTHandle> renderTargetList = new Dictionary<int, RTHandle>();
 
         #region ID
         
@@ -45,26 +46,7 @@ namespace Reuben.RTXBaker.Runtime
             SetupAccelerationStructure();   //初始化加速结构
             SetupPRNGStates();
             //创建RT
-            RTHandle renderTarget = RTHandles.Alloc(
-                mainCamera.pixelWidth,
-                mainCamera.pixelHeight,
-                1,
-                DepthBits.None,
-                GraphicsFormat.R32G32B32A32_SFloat,
-                FilterMode.Point,
-                TextureWrapMode.Clamp,
-                TextureDimension.Tex2D,
-                true,
-                false,
-                false,
-                false,
-                1,
-                0f,
-                MSAASamples.None,
-                false,
-                false,
-                RenderTextureMemoryless.None,
-                $"OutputTarget_{mainCamera.name}");
+            RTHandle renderTarget = SetupRT(mainCamera);
             
             Vector4 renderTargetSize = new Vector4(mainCamera.pixelWidth, mainCamera.pixelHeight, 1.0f / mainCamera.pixelWidth, 1.0f / mainCamera.pixelHeight);
             
@@ -139,6 +121,40 @@ namespace Reuben.RTXBaker.Runtime
             for (var i = 0; i < mainCamera.pixelWidth * mainCamera.pixelHeight * 4; ++i)
                 data[i] = _mt19937.genrand_int32();
             PRNGStates.SetData(data);
+        }
+        public RTHandle SetupRT(Camera camera)
+        {
+            int id = camera.GetInstanceID();
+            if (renderTargetList.TryGetValue(id, out var renderTarget))
+            {
+                return renderTarget;
+            }
+            else
+            {
+                //创建RT
+                renderTarget = RTHandles.Alloc(
+                    camera.pixelWidth,
+                    camera.pixelHeight,
+                    1,
+                    DepthBits.None,
+                    GraphicsFormat.R32G32B32A32_SFloat,
+                    FilterMode.Point,
+                    TextureWrapMode.Clamp,
+                    TextureDimension.Tex2D,
+                    true,
+                    false,
+                    false,
+                    false,
+                    1,
+                    0f,
+                    MSAASamples.None,
+                    false,
+                    false,
+                    RenderTextureMemoryless.None,
+                    $"OutputTarget_{camera.name}");
+                renderTargetList.Add(id, renderTarget);
+                return renderTarget;
+            }
         }
     }
 }
