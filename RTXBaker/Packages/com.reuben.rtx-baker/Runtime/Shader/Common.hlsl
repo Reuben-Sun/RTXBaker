@@ -18,6 +18,7 @@ struct RayIntersection
 {
     float4 color;
     uint4 PRNGStates;   //随机数产生器
+    int remainingDepth;
 };
 
 struct AttributeData
