@@ -16,7 +16,8 @@ namespace Reuben.RTXBaker.Editor
         #region Properties
 
         public RayTracingShader _RaytraceShader;
-        public int AATime = 5;
+        public int AATime = 10;
+        public int RenderSize = 2048;
 
         #endregion
         
@@ -60,13 +61,13 @@ namespace Reuben.RTXBaker.Editor
         #region Debug Panel
 
         [Title("Debug Panel")]
-        [Button("GetRayTraceShader")]
+        [Button("初始化光追Shader")]
         void GetRayTraceShader()
         {
             _RaytraceShader = AssetDatabase.LoadAssetAtPath<RayTracingShader>("Packages/com.reuben.rtx-baker/Runtime/Shader/RTXShader.raytrace");
         }
         
-        [Button("GetLightProbeItem")]
+        [Button("收集LightProbe")]
         void GetLightProbeItem()
         {
             _probeInfos.Clear();
@@ -102,7 +103,7 @@ namespace Reuben.RTXBaker.Editor
             _accelerationStructure.Build();
         }
         
-        [Button("GetMainCamera")]
+        [Button("获得渲染相机")]
         void GetMainCamera()
         {
             var cameras = Camera.allCameras;
@@ -111,6 +112,8 @@ namespace Reuben.RTXBaker.Editor
                 GameObject cam = new GameObject("Main Camera");
                 Camera _c = cam.AddComponent<Camera>();
                 _c.tag = "MainCamera";
+                _c.aspect = 1;
+                _c.fieldOfView = 90f;
                 _mainCamera = _c;
             }
             else
@@ -121,6 +124,8 @@ namespace Reuben.RTXBaker.Editor
                     {
                         _mainCamera = camera;
                         _mainCamera.tag = "MainCamera";
+                        _mainCamera.aspect = 1;
+                        _mainCamera.fieldOfView = 90f;
                         return;
                     }
                 }
@@ -128,19 +133,20 @@ namespace Reuben.RTXBaker.Editor
         }
         
 
-        [Button("GetRenderTarget")]
+        [Button("绘制")]
         void GetRenderTarget()
         {
             CommandBuffer cmd = new CommandBuffer {name = "RTX Camera"};
             SetupPRNGStates(_mainCamera);
             RTHandle renderTarget = SetupRT(_mainCamera);
-            Vector4 renderTargetSize = new Vector4(_mainCamera.pixelWidth, _mainCamera.pixelHeight, 1.0f / _mainCamera.pixelWidth, 1.0f / _mainCamera.pixelHeight);
+            Vector4 renderTargetSize = new Vector4(RenderSize, RenderSize, 1.0f / RenderSize, 1.0f / RenderSize);
 
             for (int faceId = 0; faceId < _faceDirs.Length/2; faceId++)
             {
                 SetCameraPosition(_mainCamera, faceId);
                 _frameIndex = 0;
                 SetupCamera(_mainCamera);
+                cmd.ClearRenderTarget(true, true, Color.clear);
                 try
                 {
                     for (int i = 0; i < AATime; i++)
@@ -206,8 +212,8 @@ namespace Reuben.RTXBaker.Editor
             {
                 //创建RT
                 renderTarget = RTHandles.Alloc(
-                    camera.pixelWidth,
-                    camera.pixelHeight,
+                    RenderSize,
+                    RenderSize,
                     1,
                     DepthBits.None,
                     GraphicsFormat.R32G32B32A32_SFloat,
@@ -231,11 +237,11 @@ namespace Reuben.RTXBaker.Editor
         }
         private void SetupPRNGStates(Camera camera)
         {
-            PRNGStates = new ComputeBuffer(camera.pixelWidth * camera.pixelHeight, 4 * 4, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
+            PRNGStates = new ComputeBuffer(RenderSize * RenderSize, 4 * 4, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
             var _mt19937 = new MersenneTwister.MT.mt19937ar_cok_opt_t();
             _mt19937.init_genrand((uint)System.DateTime.Now.Ticks);
-            var data = new uint[camera.pixelWidth * camera.pixelHeight * 4];
-            for (var i = 0; i < camera.pixelWidth * camera.pixelHeight * 4; ++i)
+            var data = new uint[RenderSize * RenderSize * 4];
+            for (var i = 0; i < RenderSize * RenderSize * 4; ++i)
                 data[i] = _mt19937.genrand_int32();
             PRNGStates.SetData(data);
         }
