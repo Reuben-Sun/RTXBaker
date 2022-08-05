@@ -105,7 +105,7 @@ namespace Reuben.RTXBaker.Runtime
 
         #region SetUpUtils
 
-        public void SetupCamera()
+        private void SetupCamera()
         {
             Shader.SetGlobalVector(CameraShaderParams._WorldSpaceCameraPos, mainCamera.transform.position);
             var projMatrix = GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false);
@@ -116,7 +116,7 @@ namespace Reuben.RTXBaker.Runtime
             Shader.SetGlobalFloat(CameraShaderParams._CameraFarDistance, mainCamera.farClipPlane);
         }
 
-        public void SetupAccelerationStructure()
+        private void SetupAccelerationStructure()
         {
             if (SceneManager.Instance == null || !SceneManager.Instance.isDirty) return;
 
@@ -130,7 +130,7 @@ namespace Reuben.RTXBaker.Runtime
             SceneManager.Instance.isDirty = false;
         }
 
-        public void SetupPRNGStates()
+        private void SetupPRNGStates()
         {
             PRNGStates = new ComputeBuffer(mainCamera.pixelWidth * mainCamera.pixelHeight, 4 * 4, ComputeBufferType.Structured, ComputeBufferMode.Immutable);
             var _mt19937 = new MersenneTwister.MT.mt19937ar_cok_opt_t();
@@ -140,7 +140,7 @@ namespace Reuben.RTXBaker.Runtime
                 data[i] = _mt19937.genrand_int32();
             PRNGStates.SetData(data);
         }
-        public RTHandle SetupRT(Camera camera)
+        private RTHandle SetupRT(Camera camera)
         {
             int id = camera.GetInstanceID();
             if (renderTargetList.TryGetValue(id, out var renderTarget))
