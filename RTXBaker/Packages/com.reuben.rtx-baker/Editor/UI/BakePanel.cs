@@ -17,7 +17,7 @@ namespace Reuben.RTXBaker.Editor
 
         public RayTracingShader _RaytraceShader;
         public int AATime = 10;
-        public int RenderSize = 2048;
+        public int RenderSize = 256;
         public bool SaveCubemap = true;
 
         #endregion
@@ -30,7 +30,7 @@ namespace Reuben.RTXBaker.Editor
         private ComputeBuffer PRNGStates;
         private Dictionary<int, RTHandle> renderTargetList = new Dictionary<int, RTHandle>();
         private int _frameIndex = 0;
-        private List<CubemapInfo> cubemapInfo = new List<CubemapInfo>();
+        private Dictionary<int, CubemapInfo> cubemapInfo = new Dictionary<int, CubemapInfo>();
         #endregion
 
         #region Const
@@ -179,7 +179,11 @@ namespace Reuben.RTXBaker.Editor
         [Button("积分")]
         void GetIrradianceMap()
         {
-            
+            for (int i = 0; i < RenderSize; i++)
+            {
+                Debug.Log(SampleCubemap(0, i, RenderSize/2));
+                Debug.Log(GetAreaSize(i, RenderSize/2));
+            }
         }
 
         #endregion
@@ -195,6 +199,7 @@ namespace Reuben.RTXBaker.Editor
             GetAccelerationStructure();
             GetMainCamera();
             GetRenderTarget();
+            GetIrradianceMap();
         }
 
         #endregion
@@ -263,7 +268,9 @@ namespace Reuben.RTXBaker.Editor
             RenderTexture.active = rt;
             Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            if (_saveCubemap)
+            
+            //保存cubemap
+            if (_saveCubemap)   
             {
                 byte[] bytes = tex.EncodeToTGA();
                 File.WriteAllBytes($"Assets/RT{faceId}.tga", bytes);
@@ -275,20 +282,18 @@ namespace Reuben.RTXBaker.Editor
                 importer.alphaIsTransparency = false;
                 importer.alphaSource = TextureImporterAlphaSource.FromInput;
                 importer.sRGBTexture = false;
-                importer.SetPlatformTextureSettings("Android", 1024, TextureImporterFormat.ASTC_8x8);
-                importer.SetPlatformTextureSettings("iPhone", 1024, TextureImporterFormat.ASTC_8x8);
-                importer.SetPlatformTextureSettings("Standalone", 2048, TextureImporterFormat.BC7);
+                importer.SetPlatformTextureSettings("Android", RenderSize/2, TextureImporterFormat.ASTC_8x8);
+                importer.SetPlatformTextureSettings("iPhone", RenderSize/2, TextureImporterFormat.ASTC_8x8);
+                importer.SetPlatformTextureSettings("Standalone", RenderSize, TextureImporterFormat.BC7);
                 importer.SaveAndReimport();
             }
-            else
+            
+            Color[] tempColor = tex.GetPixels();
+            if (!cubemapInfo.ContainsKey(faceId))
             {
-                Color[] tempColor = tex.GetPixels();
-                cubemapInfo.Add(new CubemapInfo
-                {
-                    colors = tempColor,
-                    faceId = faceId
-                });
+                cubemapInfo.Add(faceId, new CubemapInfo{colors = tempColor});
             }
+            
             
         }
         void SetCameraPosition(Camera camera, int faceId)
@@ -300,6 +305,41 @@ namespace Reuben.RTXBaker.Editor
             
             camera.transform.position = _probeInfos[0].Position;
             camera.transform.rotation = Quaternion.LookRotation(_faceDirs[faceId, 0], _faceDirs[faceId, 1]);
+        }
+
+        Vector3 GetNormalDir(int faceId, int sampleX, int sampleY)
+        {
+            float u = 2f * ((sampleX + 0.5f) / RenderSize) - 1;
+            float v = 2f * ((sampleY + 0.5f) / RenderSize) - 1;
+            Vector3 normalDir = _faceDirs[faceId, 0] + _faceDirs[faceId, 1] * v + _faceDirs[faceId, 2] * u;
+            return Vector3.Normalize(normalDir);
+        }
+
+        Color SampleCubemap(int faceId, int sampleX, int sampleY)
+        {
+            if (cubemapInfo.ContainsKey(faceId))
+            {
+                return cubemapInfo[faceId].colors[sampleY * RenderSize + sampleX];
+            }
+            return Color.black;
+        }
+
+        float GetPreAreaSize(float x, float y)
+        {
+            return (float)Math.Atan2(x * y, Math.Sqrt(x * x + y * y + 1.0));
+        }
+        //求像素在单位球面的投影面积，公式来自 GAMES202
+        float GetAreaSize(int sampleX, int sampleY)     
+        {
+            float u = 2f * ((sampleX + 0.5f) / RenderSize) - 1;
+            float v = 2f * ((sampleY + 0.5f) / RenderSize) - 1;
+            float prePixelSize = 1f / RenderSize;
+            float x0 = u - prePixelSize;
+            float y0 = v - prePixelSize;
+            float x1 = u + prePixelSize;
+            float y1 = v + prePixelSize;
+            float angle = GetPreAreaSize(x0, y0) - GetPreAreaSize(x0, y1) - GetPreAreaSize(x1, y0) + GetPreAreaSize(x1, y1);
+            return angle;
         }
         #endregion
     }

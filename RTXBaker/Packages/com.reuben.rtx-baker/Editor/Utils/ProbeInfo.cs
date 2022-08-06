@@ -10,6 +10,5 @@ namespace Reuben.RTXBaker.Editor
     internal struct CubemapInfo
     {
         public Color[] colors;
-        public int faceId;
     }
 }
