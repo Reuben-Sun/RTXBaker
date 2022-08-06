@@ -18,6 +18,7 @@ namespace Reuben.RTXBaker.Editor
         public RayTracingShader _RaytraceShader;
         public int AATime = 10;
         public int RenderSize = 2048;
+        public bool SaveCubemap = true;
 
         #endregion
         
@@ -29,20 +30,23 @@ namespace Reuben.RTXBaker.Editor
         private ComputeBuffer PRNGStates;
         private Dictionary<int, RTHandle> renderTargetList = new Dictionary<int, RTHandle>();
         private int _frameIndex = 0;
-        
+        private List<CubemapInfo> cubemapInfo = new List<CubemapInfo>();
         #endregion
 
         #region Const
 
-        //镜头朝向，左为前向量，右为上向量
-        Vector3[,] _faceDirs = new Vector3[6, 2] {
-            {new Vector3( 1, 0, 0), new Vector3(0, 1, 0)},
-            {new Vector3(-1, 0, 0), new Vector3(0, 1, 0)},
-            {new Vector3( 0, 1, 0), new Vector3(0, 0,-1)},
-            {new Vector3( 0,-1, 0), new Vector3(0, 0, 1)},
-            {new Vector3( 0, 0, 1), new Vector3(0, 1, 0)},
-            {new Vector3( 0, 0,-1), new Vector3(0, 1, 0)},
+        //镜头朝向，0为前向量，1为上向量
+        //左手系，大拇指为 y，食指方向为 x，中指方向为 z
+        Vector3[,] _faceDirs = new Vector3[6, 3] {
+            {new Vector3( 1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)},    //x轴正方形
+            {new Vector3(-1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, -1)},   //x轴负方向
+            {new Vector3( 0, 1, 0), new Vector3(0, 0,-1), new Vector3(0, 0, 1)},    //y轴正方向
+            {new Vector3( 0,-1, 0), new Vector3(0, 0, 1), new Vector3(0, 0, 1)},    //y轴负方向
+            {new Vector3( 0, 0, 1), new Vector3(0, 1, 0), new Vector3(-1, 0, 0)},   //z轴正方向
+            {new Vector3( 0, 0,-1), new Vector3(0, 1, 0), new Vector3(1, 0, 0)},    //z轴负方向
         };
+
+        private static readonly int _faceDirTime = 3;   //方向数
         
         private static readonly int _renderTargetId = Shader.PropertyToID("_RenderTarget");
         private static readonly int _frameIndexShaderId = Shader.PropertyToID("_FrameIndex");
@@ -132,7 +136,6 @@ namespace Reuben.RTXBaker.Editor
             }
         }
         
-
         [Button("绘制")]
         void GetRenderTarget()
         {
@@ -140,8 +143,10 @@ namespace Reuben.RTXBaker.Editor
             SetupPRNGStates(_mainCamera);
             RTHandle renderTarget = SetupRT(_mainCamera);
             Vector4 renderTargetSize = new Vector4(RenderSize, RenderSize, 1.0f / RenderSize, 1.0f / RenderSize);
+            
+            cubemapInfo.Clear();
 
-            for (int faceId = 0; faceId < _faceDirs.Length/2; faceId++)
+            for (int faceId = 0; faceId < _faceDirs.Length/_faceDirTime; faceId++)
             {
                 SetCameraPosition(_mainCamera, faceId);
                 _frameIndex = 0;
@@ -162,13 +167,19 @@ namespace Reuben.RTXBaker.Editor
                         Graphics.ExecuteCommandBuffer(cmd);
                         _frameIndex++;
                     }
-                    SaveRT(renderTarget, $"RT{faceId}");
+                    SaveRT(renderTarget, faceId, SaveCubemap);
                 }
                 finally
                 {
                 
                 }
             }
+        }
+
+        [Button("积分")]
+        void GetIrradianceMap()
+        {
+            
         }
 
         #endregion
@@ -246,30 +257,39 @@ namespace Reuben.RTXBaker.Editor
             PRNGStates.SetData(data);
         }
 
-        public void SaveRT(RenderTexture rt, string fileName)
+        public void SaveRT(RenderTexture rt, int faceId, bool _saveCubemap)
         {
-            if (fileName == "")
-            {
-                Debug.LogError("fail to save rt: fileName is empty");
-                return;
-            }
             RenderTexture prev = RenderTexture.active;
             RenderTexture.active = rt;
             Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGBA32, false);
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
-            byte[] bytes = tex.EncodeToTGA();
-            File.WriteAllBytes($"Assets/{fileName}.tga", bytes);
-            AssetDatabase.Refresh();
-            //贴图格式设置
-            TextureImporter importer = AssetImporter.GetAtPath($"Assets/{fileName}.tga") as TextureImporter;
-            importer.textureType = TextureImporterType.Default;
-            importer.alphaIsTransparency = false;
-            importer.alphaSource = TextureImporterAlphaSource.FromInput;
-            importer.sRGBTexture = false;
-            importer.SetPlatformTextureSettings("Android", 1024, TextureImporterFormat.ASTC_8x8);
-            importer.SetPlatformTextureSettings("iPhone", 1024, TextureImporterFormat.ASTC_8x8);
-            importer.SetPlatformTextureSettings("Standalone", 2048, TextureImporterFormat.BC7);
-            importer.SaveAndReimport();
+            if (_saveCubemap)
+            {
+                byte[] bytes = tex.EncodeToTGA();
+                File.WriteAllBytes($"Assets/RT{faceId}.tga", bytes);
+                RenderTexture.active = prev;
+                AssetDatabase.Refresh();
+                //贴图格式设置
+                TextureImporter importer = AssetImporter.GetAtPath($"Assets/RT{faceId}.tga") as TextureImporter;
+                importer.textureType = TextureImporterType.Default;
+                importer.alphaIsTransparency = false;
+                importer.alphaSource = TextureImporterAlphaSource.FromInput;
+                importer.sRGBTexture = false;
+                importer.SetPlatformTextureSettings("Android", 1024, TextureImporterFormat.ASTC_8x8);
+                importer.SetPlatformTextureSettings("iPhone", 1024, TextureImporterFormat.ASTC_8x8);
+                importer.SetPlatformTextureSettings("Standalone", 2048, TextureImporterFormat.BC7);
+                importer.SaveAndReimport();
+            }
+            else
+            {
+                Color[] tempColor = tex.GetPixels();
+                cubemapInfo.Add(new CubemapInfo
+                {
+                    colors = tempColor,
+                    faceId = faceId
+                });
+            }
+            
         }
         void SetCameraPosition(Camera camera, int faceId)
         {

@@ -6,4 +6,10 @@ namespace Reuben.RTXBaker.Editor
     {
         public Vector3 Position;
     }
+
+    internal struct CubemapInfo
+    {
+        public Color[] colors;
+        public int faceId;
+    }
 }
