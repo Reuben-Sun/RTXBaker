@@ -1,6 +1,10 @@
 # RTXBaker
 
+### 参考
+
 [RTIOW in Unity](https://github.com/zhing2006/GPU-Ray-Tracing-in-One-Weekend-by-Unity-2019.3#gpu-ray-tracing-in-one-weekend-by-unity-20193)
+
+[RTIRL in Unity](https://zhuanlan.zhihu.com/p/88619055)
 
 [Hammersley Sample](https://zhuanlan.zhihu.com/p/103715075)
 
