@@ -19,7 +19,7 @@ namespace Reuben.RTXBaker.Editor
         [ShowInInspector] public int AATime = 10;
         [ShowInInspector] public int RenderSize = 256;
         [ShowInInspector] public bool SaveCubemap = true;
-        // public SHAsset _Asset;
+        public SHAsset _Asset;
         
         #endregion
         
@@ -33,6 +33,7 @@ namespace Reuben.RTXBaker.Editor
         private int _frameIndex = 0;
         private Dictionary<int, CubemapInfo> cubemapInfo = new Dictionary<int, CubemapInfo>();
         private SH9Color cols = new SH9Color();
+        private string shAssetPath = "Assets/Temp/SHAsset.asset";
         private const string RTReleasePath = "Assets/Temp/RT{0}.tga";
         private const string displayPrefabPath = "Packages/com.reuben.rtx-baker/Runtime/LitShader/DisplaySphere.prefab";
         #endregion
@@ -71,7 +72,7 @@ namespace Reuben.RTXBaker.Editor
         #region Debug Panel
 
         [Title("Debug Panel")]
-        /*[Button("创建SH Asset")]
+        [Button("创建SH Asset")]
         void CreataSHAsset()
         {
             _Asset = AssetDatabase.LoadAssetAtPath<SHAsset>(shAssetPath);
@@ -82,7 +83,7 @@ namespace Reuben.RTXBaker.Editor
                 AssetDatabase.Refresh();
                 _Asset = AssetDatabase.LoadAssetAtPath<SHAsset>(shAssetPath);
             }
-        }*/
+        }
         [Button("初始化光追Shader")]
         void GetRayTraceShader()
         {
@@ -224,30 +225,51 @@ namespace Reuben.RTXBaker.Editor
             cols = result;
         }
 
-        /*[Button("保存")]
+        [Button("保存")]
         void SaveSHAsset()
         {
-            _Asset._SH9Color.Add(cols);
+            _Asset.SH9Color.Clear();
+            for (int i = 0; i < 9; i++)
+            {
+                _Asset.SH9Color.Add(cols.c[i]);
+            }
             EditorUtility.SetDirty(_Asset);
             AssetDatabase.SaveAssets();
-        }*/
+        }
 
         [Button("展示")]
         void DisplaySH()
         {
-            GameObject dispalyGO = GameObject.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(displayPrefabPath), _mainCamera.transform);
-            Vector4[] tempSH = new Vector4[9];
-            for (int i = 0; i < 9; i++)
+            if (_mainCamera == null)
             {
-                tempSH[i] = cols.c[i];
+                GetMainCamera();
             }
-            Shader.SetGlobalVectorArray(_SHDataShaderId,  tempSH);
+
+            if (_Asset == null)
+            {
+                CreataSHAsset();
+            }
+            GameObject dispalyGO = GameObject.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(displayPrefabPath), _mainCamera.transform);
+            if (_Asset.SH9Color.Count == 0)
+            {
+                Vector4[] tempSH = new Vector4[9];
+                for (int i = 0; i < 9; i++)
+                {
+                    tempSH[i] = cols.c[i];
+                }
+                Shader.SetGlobalVectorArray(_SHDataShaderId, tempSH);
+            }
+            else
+            {
+                Shader.SetGlobalVectorArray(_SHDataShaderId, _Asset.SH9Color);
+            }
         }
 
         [Button("清除展示球")]
         void ClearDisplaySH()
         {
             GameObject.DestroyImmediate(GameObject.Find("DisplaySphere(Clone)"));
+            Shader.SetGlobalVectorArray(_SHDataShaderId, new List<Vector4>(9));
         }
         #endregion
 
@@ -258,17 +280,17 @@ namespace Reuben.RTXBaker.Editor
         void Bake()
         {
             ClearDisplaySH();            
-            // CreataSHAsset();
+            CreataSHAsset();
             GetRayTraceShader();
             GetLightProbeItem();
             GetAccelerationStructure();
             GetMainCamera();
             GetRenderTarget();
             GetIrradianceMap();
-            // SaveSHAsset();
+            SaveSHAsset();
             DisplaySH();
         }
-
+        
         #endregion
         
         #region Utils
