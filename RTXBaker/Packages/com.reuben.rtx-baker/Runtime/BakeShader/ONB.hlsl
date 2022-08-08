@@ -22,4 +22,10 @@ void ONBBuildFromW(inout ONB uvw, float3 n) {
 float3 ONBLocal(inout ONB uvw, float3 a) {
     return a.x * uvw.u + a.y * uvw.v + a.z * uvw.w;
 }
+
+float ScatteringPDF(float3 inOrigin, float3 inDirection, float inT, float3 hitNormal, float3 scatteredDir)
+{
+    float cosine = dot(hitNormal, scatteredDir);
+    return max(0.0f, cosine / M_PI);
+}
 #endif

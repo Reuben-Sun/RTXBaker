@@ -135,10 +135,49 @@ Shader "RT/Diffuse"
                     float t = RayTCurrent();
                     float3 positionWS = origin + direction * t;
 
+                    //pdf
+                    ONB uvw;
+                    ONBBuildFromW(uvw, normalWS);
+                    float3 scatteredDir;    //散射方向
+                    float pdf;
+                    if(GetRandomValue(rayIntersection.PRNGStates) < 0.5f)
+                    {
+                        //50%的概率采半球（法线正方向）
+                        scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
+                        pdf = dot(normalWS, scatteredDir) / M_PI;
+                    }
+                    else
+                    {
+                        //50%的概率采自定义的光源
+                        const float3 _FakeLightMin = float3(-106.5f, 554.0f, -52.5f);
+                        const float3 _FakeLightMax = float3( 106.5f, 554.0f,  52.5f);
+                        float3 onLight = float3(
+                          _FakeLightMin.x + GetRandomValue(rayIntersection.PRNGStates) * (_FakeLightMax.x - _FakeLightMin.x),
+                          _FakeLightMin.y,
+                          _FakeLightMin.z + GetRandomValue(rayIntersection.PRNGStates) * (_FakeLightMax.z - _FakeLightMin.z));
+                        float3 toLight = onLight - positionWS;
+                        float distanceSquared = toLight.x * toLight.x + toLight.y * toLight.y + toLight.z * toLight.z;
+                        toLight = normalize(toLight);
+                        if (dot(toLight, normalWS) < 0.0f)
+                        {
+                          scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
+                          pdf = dot(normalWS, scatteredDir) / M_PI;
+                        }
+                        float lightArea = (_FakeLightMax.x - _FakeLightMin.x) * (_FakeLightMax.z - _FakeLightMin.z);
+                        float lightConsin = abs(toLight.y);
+                        if (lightConsin < 1e-5f)
+                        {
+                          scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
+                          pdf = dot(normalWS, scatteredDir) / M_PI;
+                        }
+                        scatteredDir = toLight;
+                        pdf = distanceSquared / (lightConsin * lightArea);
+                    }
+                    
                     // Make reflection ray.
                     RayDesc rayDescriptor;
                     rayDescriptor.Origin = positionWS + 0.001f * normalWS;  //向外挤出一点点
-                    rayDescriptor.Direction = normalize(normalWS + GetRandomOnUnitSphere(rayIntersection.PRNGStates)); //朝随机方向反射
+                    rayDescriptor.Direction = scatteredDir;
                     rayDescriptor.TMin = 1e-5f;
                     rayDescriptor.TMax = _CameraFarDistance;
 
@@ -151,7 +190,8 @@ Shader "RT/Diffuse"
                     TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
 
                     rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
-                    color = reflectionRayIntersection.color;
+                    color = ScatteringPDF(origin, direction, t, normalWS, scatteredDir) * reflectionRayIntersection.color / pdf;
+                    color = max(float4(0,0,0,0), color);
                 }
 
                 rayIntersection.color = texColor * 0.5f * color;
