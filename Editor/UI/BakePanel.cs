@@ -19,7 +19,8 @@ namespace Reuben.RTXBaker.Editor
         public int AATime = 10;
         public int RenderSize = 256;
         public bool SaveCubemap = true;
-
+        // public SHAsset _Asset;
+        
         #endregion
         
         #region Attribute
@@ -31,6 +32,9 @@ namespace Reuben.RTXBaker.Editor
         private Dictionary<int, RTHandle> renderTargetList = new Dictionary<int, RTHandle>();
         private int _frameIndex = 0;
         private Dictionary<int, CubemapInfo> cubemapInfo = new Dictionary<int, CubemapInfo>();
+        private SH9Color cols = new SH9Color();
+        // private const string shAssetPath = "Assets/SHAsset.asset";
+        private const string displayPrefabPath = "Packages/com.reuben.rtx-baker/Runtime/LitShader/DisplaySphere.prefab";
         #endregion
 
         #region Const
@@ -46,7 +50,7 @@ namespace Reuben.RTXBaker.Editor
             {new Vector3( 0, 0,-1), new Vector3(0, 1, 0), new Vector3(1, 0, 0)},    //z轴负方向
         };
 
-        private static readonly int _faceDirTime = 3;   //方向数
+        private static readonly int _faceDirTime = 3;   //每个方向的向量数
         
         private static readonly int _renderTargetId = Shader.PropertyToID("_RenderTarget");
         private static readonly int _frameIndexShaderId = Shader.PropertyToID("_FrameIndex");
@@ -59,16 +63,30 @@ namespace Reuben.RTXBaker.Editor
             public static readonly int _CameraFarDistance = Shader.PropertyToID("_CameraFarDistance");
         }
         private static readonly int _accelerationStructureShaderId = Shader.PropertyToID("_AccelerationStructure");
+
+        private static readonly int _SHDataShaderId = Shader.PropertyToID("_SHData");
         
         #endregion
         
         #region Debug Panel
 
         [Title("Debug Panel")]
+        /*[Button("创建SH Asset")]
+        void CreataSHAsset()
+        {
+            _Asset = AssetDatabase.LoadAssetAtPath<SHAsset>(shAssetPath);
+            if (_Asset == null)
+            {
+                var so = ScriptableObject.CreateInstance(typeof(SHAsset));
+                AssetDatabase.CreateAsset(so, shAssetPath);
+                AssetDatabase.Refresh();
+                _Asset = AssetDatabase.LoadAssetAtPath<SHAsset>(shAssetPath);
+            }
+        }*/
         [Button("初始化光追Shader")]
         void GetRayTraceShader()
         {
-            _RaytraceShader = AssetDatabase.LoadAssetAtPath<RayTracingShader>("Packages/com.reuben.rtx-baker/Runtime/Shader/RTXShader.raytrace");
+            _RaytraceShader = AssetDatabase.LoadAssetAtPath<RayTracingShader>("Packages/com.reuben.rtx-baker/Runtime/BakeShader/RTXShader.raytrace");
         }
         
         [Button("收集LightProbe")]
@@ -179,13 +197,58 @@ namespace Reuben.RTXBaker.Editor
         [Button("积分")]
         void GetIrradianceMap()
         {
-            for (int i = 0; i < RenderSize; i++)
+            SH9Color result = new SH9Color();
+            float weightSum = 0.0f;
+            for (int faceId = 0; faceId < 6; faceId++)
             {
-                Debug.Log(SampleCubemap(0, i, RenderSize/2));
-                Debug.Log(GetAreaSize(i, RenderSize/2));
+                for (int x = 0; x < RenderSize; x++)
+                {
+                    for (int y = 0; y < RenderSize; y++)
+                    {
+                        Color sampledColor = SampleCubemap(faceId, x, y);
+                        float weight = GetAreaSize(x, y);
+                        Vector3 normal = GetNormalDir(faceId, x, y);
+                        SH9Color cur = ProjectToSH9Color(normal, sampledColor);
+                        for (int i = 0; i < 9; i++)
+                        {
+                            result.c[i] += cur.c[i] * weight;
+                        }
+                    }
+                }
             }
+
+            for (int i = 0; i < 9; i++)
+            {
+                Debug.Log(result.c[i]);
+            }
+            cols = result;
         }
 
+        /*[Button("保存")]
+        void SaveSHAsset()
+        {
+            _Asset._SH9Color.Add(cols);
+            EditorUtility.SetDirty(_Asset);
+            AssetDatabase.SaveAssets();
+        }*/
+
+        [Button("展示")]
+        void DisplaySH()
+        {
+            GameObject dispalyGO = GameObject.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(displayPrefabPath), _mainCamera.transform);
+            Vector4[] tempSH = new Vector4[9];
+            for (int i = 0; i < 9; i++)
+            {
+                tempSH[i] = cols.c[i];
+            }
+            Shader.SetGlobalVectorArray(_SHDataShaderId,  tempSH);
+        }
+
+        [Button("清除展示球")]
+        void ClearDisplaySH()
+        {
+            GameObject.DestroyImmediate(GameObject.Find("DisplaySphere(Clone)"));
+        }
         #endregion
 
         #region Bake Panel
@@ -194,12 +257,16 @@ namespace Reuben.RTXBaker.Editor
         [Button("Bake")]
         void Bake()
         {
+            ClearDisplaySH();            
+            // CreataSHAsset();
             GetRayTraceShader();
             GetLightProbeItem();
             GetAccelerationStructure();
             GetMainCamera();
             GetRenderTarget();
             GetIrradianceMap();
+            // SaveSHAsset();
+            DisplaySH();
         }
 
         #endregion
@@ -293,8 +360,6 @@ namespace Reuben.RTXBaker.Editor
             {
                 cubemapInfo.Add(faceId, new CubemapInfo{colors = tempColor});
             }
-            
-            
         }
         void SetCameraPosition(Camera camera, int faceId)
         {
@@ -340,6 +405,37 @@ namespace Reuben.RTXBaker.Editor
             float y1 = v + prePixelSize;
             float angle = GetPreAreaSize(x0, y0) - GetPreAreaSize(x0, y1) - GetPreAreaSize(x1, y0) + GetPreAreaSize(x1, y1);
             return angle;
+        }
+        
+        //投影到SH
+        SH9Color ProjectToSH9Color(Vector3 dir, Color color)
+        {
+            SH9 sh = CalculateLob(dir);
+            SH9Color sh9Color = new SH9Color();
+            for (int i = 0; i < 9; i++)
+            {
+                sh9Color.c[i] = color * sh.c[i];
+            }
+
+            return sh9Color;
+        }
+        
+        //计算球谐基
+        SH9 CalculateLob(Vector3 normal)
+        {
+            SH9 sh = new SH9();
+        
+            sh.c[0] = 0.282095f;
+            sh.c[1] = 0.488603f * normal.x;
+            sh.c[2] = 0.488603f * normal.z;
+            sh.c[3] = 0.488603f * normal.y;
+            sh.c[4] = 1.092548f * normal.x*normal.z;
+            sh.c[5] = 1.092548f * normal.y*normal.z;
+            sh.c[6] = 1.092548f * normal.y*normal.x;
+            sh.c[7] = 0.946176f * normal.z * normal.z - 0.315392f;
+            sh.c[8] = 0.546274f * (normal.x*normal.x - normal.y*normal.y);
+                
+            return sh;
         }
         #endregion
     }
