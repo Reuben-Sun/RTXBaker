@@ -80,6 +80,7 @@ Shader "RT/Diffuse"
 
             #include "Common.hlsl"
             #include "PRNG.hlsl"
+            #include "ONB.hlsl"
 
             struct IntersectionVertex
             {
@@ -94,6 +95,7 @@ Shader "RT/Diffuse"
             float4 _Color;
             CBUFFER_END
 
+            //获得顶点信息
             void FetchIntersectionVertex(uint vertexIndex, out IntersectionVertex outVertex)
             {
                 outVertex.normalOS = UnityRayTracingFetchVertexAttribute3(vertexIndex, kVertexAttributeNormal);
@@ -127,29 +129,29 @@ Shader "RT/Diffuse"
                 float4 color = float4(0, 0, 0, 1);
                 if (rayIntersection.remainingDepth > 0)
                 {
-                // Get position in world space.
-                float3 origin = WorldRayOrigin();
-                float3 direction = WorldRayDirection();
-                float t = RayTCurrent();
-                float3 positionWS = origin + direction * t;
+                    // Get position in world space.
+                    float3 origin = WorldRayOrigin();
+                    float3 direction = WorldRayDirection();
+                    float t = RayTCurrent();
+                    float3 positionWS = origin + direction * t;
 
-                // Make reflection ray.
-                RayDesc rayDescriptor;
-                rayDescriptor.Origin = positionWS + 0.001f * normalWS;  //向外挤出一点点
-                rayDescriptor.Direction = normalize(normalWS + GetRandomOnUnitSphere(rayIntersection.PRNGStates)); //朝随机方向反射
-                rayDescriptor.TMin = 1e-5f;
-                rayDescriptor.TMax = _CameraFarDistance;
+                    // Make reflection ray.
+                    RayDesc rayDescriptor;
+                    rayDescriptor.Origin = positionWS + 0.001f * normalWS;  //向外挤出一点点
+                    rayDescriptor.Direction = normalize(normalWS + GetRandomOnUnitSphere(rayIntersection.PRNGStates)); //朝随机方向反射
+                    rayDescriptor.TMin = 1e-5f;
+                    rayDescriptor.TMax = _CameraFarDistance;
 
-                // Tracing reflection.
-                RayIntersection reflectionRayIntersection;
-                reflectionRayIntersection.remainingDepth = rayIntersection.remainingDepth - 1;
-                reflectionRayIntersection.PRNGStates = rayIntersection.PRNGStates;
-                reflectionRayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+                    // Tracing reflection.
+                    RayIntersection reflectionRayIntersection;
+                    reflectionRayIntersection.remainingDepth = rayIntersection.remainingDepth - 1;
+                    reflectionRayIntersection.PRNGStates = rayIntersection.PRNGStates;
+                    reflectionRayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-                TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
+                    TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
 
-                rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
-                color = reflectionRayIntersection.color;
+                    rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
+                    color = reflectionRayIntersection.color;
                 }
 
                 rayIntersection.color = texColor * 0.5f * color;
