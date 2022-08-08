@@ -173,19 +173,19 @@ namespace Reuben.RTXBaker.Editor
                 cmd.ClearRenderTarget(true, true, Color.clear);
                 try
                 {
+                    //RTX
+                    cmd.SetRayTracingShaderPass(_RaytraceShader, "RayTracing");
+                    cmd.SetRayTracingAccelerationStructure(_RaytraceShader, _accelerationStructureShaderId, _accelerationStructure);
+                    cmd.SetRayTracingBufferParam(_RaytraceShader, _PRNGStatesShaderId, PRNGStates);
+                    cmd.SetRayTracingTextureParam(_RaytraceShader, _renderTargetId, renderTarget);
+                    cmd.SetRayTracingVectorParam(_RaytraceShader, _renderTargetSizeId, renderTargetSize);
                     for (int i = 0; i < AATime; i++)
                     {
-                        //RTX
-                        cmd.SetRayTracingShaderPass(_RaytraceShader, "RayTracing");
-                        cmd.SetRayTracingAccelerationStructure(_RaytraceShader, _accelerationStructureShaderId, _accelerationStructure);
                         cmd.SetRayTracingIntParam(_RaytraceShader, _frameIndexShaderId, _frameIndex);
-                        cmd.SetRayTracingBufferParam(_RaytraceShader, _PRNGStatesShaderId, PRNGStates);
-                        cmd.SetRayTracingTextureParam(_RaytraceShader, _renderTargetId, renderTarget);
-                        cmd.SetRayTracingVectorParam(_RaytraceShader, _renderTargetSizeId, renderTargetSize);
                         cmd.DispatchRays(_RaytraceShader, "RTXShader", (uint) renderTarget.rt.width, (uint) renderTarget.rt.height, 1, _mainCamera);
-                        Graphics.ExecuteCommandBuffer(cmd);
                         _frameIndex++;
                     }
+                    Graphics.ExecuteCommandBuffer(cmd);
                     SaveRT(renderTarget, faceId, SaveCubemap);
                 }
                 finally
