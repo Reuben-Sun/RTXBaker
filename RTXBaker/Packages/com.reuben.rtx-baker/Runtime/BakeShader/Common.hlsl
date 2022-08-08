@@ -6,7 +6,13 @@
 #define CBUFFER_START(name) cbuffer name {
 #define CBUFFER_END };
 
+// 顶点插值
 #define INTERPOLATE_RAYTRACING_ATTRIBUTE(A0, A1, A2, BARYCENTRIC_COORDINATES) (A0 * BARYCENTRIC_COORDINATES.x + A1 * BARYCENTRIC_COORDINATES.y + A2 * BARYCENTRIC_COORDINATES.z)
+
+// 采样函数
+#define SAMPLE_TEXTURE2D_LOD(textureName, samplerName, coord2, lod) textureName.SampleLevel(samplerName, coord2, lod)
+#define TEXTURE2D(textureName) Texture2D textureName
+#define SAMPLER(samplerName) SamplerState samplerName
 
 CBUFFER_START(CameraBuffer)
 float4x4 _InvCameraViewProj;
