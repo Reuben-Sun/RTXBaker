@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using Reuben.RTXBaker.Runtime;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
 using UnityEditor;
@@ -15,10 +14,11 @@ namespace Reuben.RTXBaker.Editor
     {
         #region Properties
 
-        public RayTracingShader _RaytraceShader;
-        public int AATime = 10;
-        public int RenderSize = 256;
-        public bool SaveCubemap = true;
+        [Title("Properties")]
+        [ShowInInspector] public RayTracingShader _RaytraceShader;
+        [ShowInInspector] public int AATime = 10;
+        [ShowInInspector] public int RenderSize = 256;
+        [ShowInInspector] public bool SaveCubemap = true;
         // public SHAsset _Asset;
         
         #endregion
@@ -33,7 +33,7 @@ namespace Reuben.RTXBaker.Editor
         private int _frameIndex = 0;
         private Dictionary<int, CubemapInfo> cubemapInfo = new Dictionary<int, CubemapInfo>();
         private SH9Color cols = new SH9Color();
-        // private const string shAssetPath = "Assets/SHAsset.asset";
+        private const string RTReleasePath = "Assets/Temp/RT{0}.tga";
         private const string displayPrefabPath = "Packages/com.reuben.rtx-baker/Runtime/LitShader/DisplaySphere.prefab";
         #endregion
 
@@ -340,11 +340,11 @@ namespace Reuben.RTXBaker.Editor
             if (_saveCubemap)   
             {
                 byte[] bytes = tex.EncodeToTGA();
-                File.WriteAllBytes($"Assets/RT{faceId}.tga", bytes);
+                File.WriteAllBytes(string.Format(RTReleasePath, faceId), bytes);
                 RenderTexture.active = prev;
                 AssetDatabase.Refresh();
                 //贴图格式设置
-                TextureImporter importer = AssetImporter.GetAtPath($"Assets/RT{faceId}.tga") as TextureImporter;
+                TextureImporter importer = AssetImporter.GetAtPath(string.Format(RTReleasePath, faceId)) as TextureImporter;
                 importer.textureType = TextureImporterType.Default;
                 importer.alphaIsTransparency = false;
                 importer.alphaSource = TextureImporterAlphaSource.FromInput;
