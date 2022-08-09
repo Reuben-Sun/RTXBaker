@@ -2,6 +2,8 @@
 
 ### 功能
 
+Raytrace生成Cubemap，积分得到SH
+
 ![效果演示](image/效果演示.gif)
 
 ![烘焙面板](image/烘焙面板.jpg)
@@ -14,7 +16,26 @@
 
 ### 安装方法
 
+打开Unity Package Manager，输入
 
+```
+https://github.com/Reuben-Sun/RTXBaker.git#upm
+```
+
+### 开发指南
+
+#### 提交方法
+
+1. 在`master`分支进行开发测试
+   - 提交前请保证无编译错误，Runtime不崩溃，且无严重影响性能的功能
+   - 请修改`package.json`的版本号
+2. 提交`upm`分支，具体指令
+
+```
+git subtree split --prefix=RTXBaker/Packages/com.reuben.rtx-baker --branch upm
+git tag 1.0.x upm
+git push origin upm --tags
+```
 
 ### 参考
 
