@@ -22,6 +22,10 @@ Raytrace生成Cubemap，积分得到SH
 https://github.com/Reuben-Sun/RTXBaker.git#upm
 ```
 
+### 开发日志
+
+[开发日志](https://github.com/Reuben-Sun/RTXBaker/blob/main/%E5%BC%80%E5%8F%91%E6%97%A5%E5%BF%97.md#%E5%BC%80%E5%8F%91%E6%97%A5%E5%BF%97)
+
 ### 开发指南
 
 #### 提交方法
