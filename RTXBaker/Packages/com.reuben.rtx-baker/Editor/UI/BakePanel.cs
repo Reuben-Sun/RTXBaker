@@ -16,7 +16,7 @@ namespace Reuben.RTXBaker.Editor
 
         [Title("Properties")]
         [ShowInInspector] public RayTracingShader _RaytraceShader;
-        [ShowInInspector] public int AATime = 10;
+        [ShowInInspector] public int AATime = 30;
         [ShowInInspector] public int RenderSize = 256;
         [ShowInInspector] public bool SaveCubemap = true;
         public SHAsset _Asset;

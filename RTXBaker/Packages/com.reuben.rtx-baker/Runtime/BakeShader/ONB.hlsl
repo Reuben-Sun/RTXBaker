@@ -26,6 +26,7 @@ float3 ONBLocal(inout ONB uvw, float3 a) {
 float ScatteringPDF(float3 inOrigin, float3 inDirection, float inT, float3 hitNormal, float3 scatteredDir)
 {
     float cosine = dot(hitNormal, scatteredDir);
+    // diffuse = NoL / Pi
     return max(0.0f, cosine / M_PI);
 }
 #endif

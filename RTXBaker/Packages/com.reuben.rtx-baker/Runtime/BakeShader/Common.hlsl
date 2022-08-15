@@ -32,7 +32,6 @@ struct AttributeData
     float2 barycentrics;
 };
 
-
 RaytracingAccelerationStructure _AccelerationStructure;
 
 inline void GenerateCameraRay(out float3 origin, out float3 direction)
@@ -59,4 +58,6 @@ inline void GenerateCameraRayWithOffset(out float3 origin, out float3 direction,
     origin = _WorldSpaceCameraPos.xyz;
     direction = normalize(world.xyz - origin);
 }
+
+#include "RTXMaterial.hlsl"
 #endif
