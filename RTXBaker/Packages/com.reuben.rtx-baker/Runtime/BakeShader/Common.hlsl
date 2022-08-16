@@ -60,4 +60,5 @@ inline void GenerateCameraRayWithOffset(out float3 origin, out float3 direction,
 }
 
 #include "RTXMaterial.hlsl"
+#include "RTXLight.hlsl"
 #endif

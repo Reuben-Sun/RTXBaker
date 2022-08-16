@@ -159,31 +159,19 @@ Shader "RT/Diffuse"
                     else
                     {
                         //50%的概率采光源（求直接光）
-
-                        //这是一个假光源，稍后要在管线中收集并传过来
-                        const float3 _FakeLightMin = float3(-106.5f, 554.0f, -52.5f);
-                        const float3 _FakeLightMax = float3( 106.5f, 554.0f,  52.5f);
-                        float3 onLight = float3(
-                          _FakeLightMin.x + GetRandomValue(rayIntersection.PRNGStates) * (_FakeLightMax.x - _FakeLightMin.x),
-                          _FakeLightMin.y,
-                          _FakeLightMin.z + GetRandomValue(rayIntersection.PRNGStates) * (_FakeLightMax.z - _FakeLightMin.z));
-                        float3 toLight = onLight - positionWS;
-                        float distanceSquared = toLight.x * toLight.x + toLight.y * toLight.y + toLight.z * toLight.z;
-                        toLight = normalize(toLight);
-                        if (dot(toLight, mtlData.normalWS) < 0.0f)
+                        RTXLight dirLight = GetDirectionalLight();
+                        float NoL = dot(dirLight.direction, mtlData.normalWS);
+                        if (NoL < 0.0f)
                         {
                           mtlData.scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
                           pdf = dot(mtlData.normalWS, mtlData.scatteredDir) / M_PI;
                         }
-                        float lightArea = (_FakeLightMax.x - _FakeLightMin.x) * (_FakeLightMax.z - _FakeLightMin.z);
-                        float lightConsin = abs(toLight.y);
-                        if (lightConsin < 1e-5f)
+                        else
                         {
-                          mtlData.scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
-                          pdf = dot(mtlData.normalWS, mtlData.scatteredDir) / M_PI;
+                            mtlData.diffVal = NoL * dirLight.color;
+                            mtlData.scatteredDir = dirLight.direction;
+                            pdf = 1;
                         }
-                        mtlData.scatteredDir = toLight;
-                        pdf = distanceSquared / (lightConsin * lightArea);
                     }
                     
                     // Make reflection ray.
@@ -194,7 +182,7 @@ Shader "RT/Diffuse"
                     rayDescriptor.TMax = _CameraFarDistance;
 
                     // Tracing reflection.
-                    RayIntersection reflectionRayIntersection;
+                    RayIntersection reflectionRayIntersection;  //下一次追踪结果
                     reflectionRayIntersection.remainingDepth = rayIntersection.remainingDepth - 1;
                     reflectionRayIntersection.PRNGStates = rayIntersection.PRNGStates;
                     reflectionRayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -202,11 +190,12 @@ Shader "RT/Diffuse"
                     TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
 
                     rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
-                    color = ScatteringPDF(origin, direction, t, mtlData.normalWS, mtlData.scatteredDir) * reflectionRayIntersection.color / pdf;
+                    color = float4(mtlData.diffVal * mtlData.kd, 1);    //直接光
+                    color += float4(mtlData.kd, 1.0f) * ScatteringPDF(origin, direction, t, mtlData.normalWS, mtlData.scatteredDir) * reflectionRayIntersection.color / pdf;   //间接光
                     color = max(float4(0,0,0,0), color);
                 }
 
-                rayIntersection.color = float4(mtlData.kd, 1.0f) * color;
+                rayIntersection.color = color;
             }
             ENDHLSL
         }

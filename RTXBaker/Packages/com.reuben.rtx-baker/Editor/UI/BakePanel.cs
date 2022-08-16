@@ -66,7 +66,9 @@ namespace Reuben.RTXBaker.Editor
         private static readonly int _accelerationStructureShaderId = Shader.PropertyToID("_AccelerationStructure");
 
         private static readonly int _SHDataShaderId = Shader.PropertyToID("_SHData");
-        
+        //灯光
+        private static readonly int _DirectionalLightColorShaderId = Shader.PropertyToID("_DirectionalLightColor");
+        private static readonly int _DirectionalLightDirectionShaderId = Shader.PropertyToID("_DirectionalLightDirection");
         #endregion
         
         #region Debug Panel
@@ -170,15 +172,17 @@ namespace Reuben.RTXBaker.Editor
                 SetCameraPosition(_mainCamera, faceId);
                 _frameIndex = 0;
                 SetupCamera(_mainCamera);
+                SetupDirectionalLight();
                 cmd.ClearRenderTarget(true, true, Color.clear);
                 try
                 {
-                    //RTX
+                    // 传参
                     cmd.SetRayTracingShaderPass(_RaytraceShader, "RayTracing");
                     cmd.SetRayTracingAccelerationStructure(_RaytraceShader, _accelerationStructureShaderId, _accelerationStructure);
                     cmd.SetRayTracingBufferParam(_RaytraceShader, _PRNGStatesShaderId, PRNGStates);
                     cmd.SetRayTracingTextureParam(_RaytraceShader, _renderTargetId, renderTarget);
                     cmd.SetRayTracingVectorParam(_RaytraceShader, _renderTargetSizeId, renderTargetSize);
+                    // render loop
                     for (int i = 0; i < AATime; i++)
                     {
                         cmd.SetRayTracingIntParam(_RaytraceShader, _frameIndexShaderId, _frameIndex);
@@ -458,6 +462,17 @@ namespace Reuben.RTXBaker.Editor
             sh.c[8] = 0.546274f * (normal.x*normal.x - normal.y*normal.y);
                 
             return sh;
+        }
+        
+        //传递方向光
+        void SetupDirectionalLight()
+        {
+            Light light = RenderSettings.sun;
+            if (light != null)
+            {
+                Shader.SetGlobalVector(_DirectionalLightColorShaderId, light.color.linear * light.intensity);
+                Shader.SetGlobalVector(_DirectionalLightDirectionShaderId, -light.transform.forward);
+            }
         }
         #endregion
     }
