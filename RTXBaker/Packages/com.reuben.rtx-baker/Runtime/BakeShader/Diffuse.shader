@@ -143,7 +143,8 @@ Shader "RT/Diffuse"
                     ONBBuildFromW(uvw, mtlData.normalWS);
                     // pdf
                     float pdf;
-                    if(GetRandomValue(rayIntersection.PRNGStates) < 0.5f)
+                    bool computeDirect = GetRandomValue(rayIntersection.PRNGStates) < 0.5f; //是否直接计算光照
+                    if(!computeDirect)
                     {
                         //50%的概率采材质（求间接光）
                         float3 metalDir = reflect(direction, mtlData.normalWS);
@@ -163,12 +164,16 @@ Shader "RT/Diffuse"
                         float NoL = dot(dirLight.direction, mtlData.normalWS);
                         if (NoL < 0.0f)
                         {
-                          mtlData.scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
-                          pdf = dot(mtlData.normalWS, mtlData.scatteredDir) / M_PI;
+                            mtlData.scatteredDir = ONBLocal(uvw, GetRandomCosineDirection(rayIntersection.PRNGStates));
+                            pdf = dot(mtlData.normalWS, mtlData.scatteredDir) / M_PI;
                         }
                         else
                         {
+                            //漫反射着色
                             mtlData.diffVal = NoL * dirLight.color;
+                            //高光反射着色
+
+                            //向光源方向散射，之后要采阴影
                             mtlData.scatteredDir = dirLight.direction;
                             pdf = 1;
                         }
