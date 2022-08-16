@@ -187,7 +187,7 @@ Shader "RT/Diffuse"
                     reflectionRayIntersection.PRNGStates = rayIntersection.PRNGStates;
                     reflectionRayIntersection.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
-                    TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, 0xFF, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
+                    TraceRay(_AccelerationStructure, RAY_FLAG_CULL_BACK_FACING_TRIANGLES, RAYTRACINGRENDERERFLAG_ALL, 0, 1, 0, rayDescriptor, reflectionRayIntersection);
 
                     rayIntersection.PRNGStates = reflectionRayIntersection.PRNGStates;
                     color = float4(mtlData.diffVal * mtlData.kd, 1);    //直接光
