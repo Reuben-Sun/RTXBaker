@@ -54,3 +54,5 @@ git push origin upm --tags
 [CubeMap To SH](https://github.com/Crocs512/GAMES202-HW/blob/1b15139b633b39124670dd5cbe79ecb4124470c4/homework2/prt/src/prt.cpp)
 
 [GAMES 202](https://games-cn.org/games202/)
+
+[HDRP Sample](https://github.com/Unity-Technologies/HDRPRayTracingScenes)
