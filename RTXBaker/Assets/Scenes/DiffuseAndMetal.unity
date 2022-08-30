@@ -625,7 +625,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f593f06a4444e3c47b46fd60ba26e36e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  renderPipelineAsset: {fileID: 11400000, guid: e9da263ded513504080f46e702f0adc5, type: 2}
+  renderPipelineAsset: {fileID: 11400000, guid: b55f5c7583e590243a97f1fa7f16d3ea, type: 2}
 --- !u!114 &1315380003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -635,12 +635,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1315380001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2417125743e1442fbc4ef44f5fe3dd89, type: 3}
+  m_Script: {fileID: 11500000, guid: e4dc9b00d4c668142a1968e787d9769f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   renderers:
-  - {fileID: 8996786936697819409}
   - {fileID: 1095898377}
+  - {fileID: 8996786936697819409}
   - {fileID: 366218265}
   - {fileID: 423949689}
 --- !u!4 &1315380004
