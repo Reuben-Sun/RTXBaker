@@ -52,7 +52,7 @@ public class RTXRenderPipeline: RenderPipeline
         
         try
         {
-            if (_frameIndex < 1000)
+            if (_frameIndex < 300)
             {
                 using (new ProfilingSample(cmd, "RayTracing"))
                 {

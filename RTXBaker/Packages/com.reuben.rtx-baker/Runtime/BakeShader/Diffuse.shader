@@ -79,6 +79,7 @@ Shader "RT/Diffuse"
             HLSLPROGRAM
 
             #pragma raytracing test
+            #pragma enable_d3d11_debug_symbols
 
             #include "Common.hlsl"
             #include "PRNG.hlsl"
